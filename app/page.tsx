@@ -1,12 +1,11 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Zap, Download, Share2, Play, RotateCcw, Undo2, Flame, Grid3x3, Diamond, Orbit, Crosshair, Skull, ArrowLeft, Menu, X, Search, Droplets, Scissors, Bomb, Binary, Trash2, Video } from 'lucide-react';
+import { Zap, Download, Share2, Play, RotateCcw, Undo2, Flame, Grid3x3, Diamond, Orbit, Crosshair, Skull, Menu, X, Search, Droplets, Scissors, Bomb, Binary, Trash2, Video } from 'lucide-react';
 import { EFFECTS, EffectId } from '@/lib/effects';
 import { browse, decodeSetup, encodeSetup, normalizeUrl } from '@/lib/screenshot';
 
 const ICONS: Record<EffectId, React.ReactNode> = { pixel: <Grid3x3 size={20} />, glass: <Diamond size={20} />, burn: <Flame size={20} />, glitch: <Zap size={20} />, hole: <Orbit size={20} />, melt: <Droplets size={20} />, slice: <Scissors size={20} />, blast: <Bomb size={20} />, matrix: <Binary size={20} />, shred: <Trash2 size={20} /> };
 const EXAMPLES = ['example.com', 'wikipedia.org', 'news.ycombinator.com'];
-const KEYS = ['Enter', 'Backspace', 'Tab', 'Escape', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Delete', 'PageDown', 'PageUp', 'Home', 'End'];
 
 export default function Home() {
   const [url, setUrl] = useState(''); const [shownUrl, setShownUrl] = useState('');
@@ -15,12 +14,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false); const [error, setError] = useState('');
   const [live, setLive] = useState(false); const [dim, setDim] = useState('');
   const [rec, setRec] = useState(false); const [recMode, setRecMode] = useState<'destroy' | 'rebuild' | 'both'>('both'); const [menu, setMenu] = useState(false); const [search, setSearch] = useState(false); const inp = useRef<HTMLInputElement>(null); const [busy, setBusy] = useState(false); const [prog, setProg] = useState(0);
-  const [toast, setToast] = useState(''); const [status, setStatus] = useState('> idle. open a site to begin.');
+  const [toast, setToast] = useState(''); const [status, setStatus] = useState('> idle. enter a url to capture a page.');
   const cv = useRef<HTMLCanvasElement>(null); const stage = useRef<HTMLDivElement>(null);
   const src = useRef<HTMLCanvasElement | null>(null); const frozen = useRef<HTMLCanvasElement | null>(null);
-  const raf = useRef(0); const p = useRef(0); const sid = useRef('');
-  const queue = useRef<Promise<unknown>>(Promise.resolve()); const pending = useRef(0);
-  const vw = useRef(1280); const ty = useRef(0); const wacc = useRef(0); const wt = useRef(0);
+  const raf = useRef(0); const p = useRef(0);
 
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(''), 2200); };
   const paint = useCallback(() => {
@@ -42,19 +39,6 @@ export default function Home() {
     if (p.current === 0) paintRef.current();
   }, []);
 
-  // All remote-browser actions run one at a time, in order.
-  const act = useCallback((body: Record<string, unknown>) => {
-    pending.current++;
-    const job = queue.current.then(async () => {
-      const r = await browse({ ...body, sid: sid.current });
-      if (r.url) setShownUrl(r.url);
-      if (p.current === 0) await setFrame(r.blob);
-    }).finally(() => { pending.current--; });
-    queue.current = job.catch(() => {});
-    return job;
-  }, [setFrame]);
-  const fail = (e: unknown) => { const m = (e as Error).message; setError(m); if (/expired/i.test(m)) { setLive(false); sid.current = ''; } };
-
   const run = useCallback((to: number, done?: () => void) => {
     cancelAnimationFrame(raf.current);
     const from = p.current; if (from === to || !src.current) return;
@@ -69,50 +53,38 @@ export default function Home() {
       const u = Math.min(1, (now - t0) / dur), e = u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
       p.current = from + (to - from) * e; paint(); setProg(p.current);
       if (u < 1) raf.current = requestAnimationFrame(step);
-      else { p.current = to; paint(); setProg(to); setBusy(false); setStatus(to ? '> destroyed. rebuild to keep browsing.' : '> restored. site is live again.'); done?.(); }
+      else { p.current = to; paint(); setProg(to); setBusy(false); setStatus(to ? '> destroyed. rebuild to restore the page.' : '> restored. ready to destroy again.'); done?.(); }
     };
     raf.current = requestAnimationFrame(step);
   }, [duration, effect, paint]);
 
-  const reset = useCallback(() => { cancelAnimationFrame(raf.current); p.current = 0; setProg(0); setBusy(false); paint(); setStatus('> reset. site is live.'); }, [paint]);
+  const reset = useCallback(() => { cancelAnimationFrame(raf.current); p.current = 0; setProg(0); setBusy(false); paint(); setStatus('> reset. page restored.'); }, [paint]);
 
   const open = useCallback(async (raw: string) => {
     setSearch(false);
     const n = normalizeUrl(raw); if (!n) { setError('Enter a valid public website address, e.g. example.com'); setSearch(true); return; }
     cancelAnimationFrame(raf.current); p.current = 0; setProg(0); setBusy(false); setLive(false);
-    if (sid.current) { void browse({ action: 'close', sid: sid.current }).catch(() => {}); sid.current = ''; }
-    setError(''); setLoading(true); setStatus(`> opening ${new URL(n).hostname}…`);
+    setError(''); setLoading(true); setStatus(`> capturing ${new URL(n).hostname}…`);
     try {
-      const st = stage.current;
-      const w = window.innerWidth < 700 ? 400 : Math.min(1920, Math.max(1024, Math.round(st?.clientWidth ?? 1280))); // phones get a phone viewport; big screens match the box vw.current = w;
-      const r = await browse({ action: 'open', url: n, w, h: st ? Math.round(w * st.clientHeight / st.clientWidth) : 800 });
-      sid.current = r.sid; setUrl(n); setShownUrl(r.url || n); await setFrame(r.blob); setLive(true);
-      setStatus('> site is live. browse it, then hit Destroy anytime.');
-    } catch (e) { setError((e as Error).message); setStatus('> open failed.'); }
+      const w = window.innerWidth < 700 ? 400 : 1280; // phones get a phone-sized capture
+      const r = await browse({ action: 'shot', url: n, w });
+      setUrl(n); setShownUrl(r.url || n); await setFrame(r.blob); setLive(true);
+      if (stage.current) stage.current.scrollTop = 0;
+      setStatus('> page captured. pick an effect and hit Destroy.');
+    } catch (e) { setError((e as Error).message); setStatus('> capture failed.'); }
     setLoading(false);
   }, [setFrame]);
 
-  // Refresh the live view while the page is idle (animations, loading content).
-  useEffect(() => {
-    if (!live || busy || prog !== 0) return;
-    const t = window.setInterval(() => { if (pending.current === 0) act({ action: 'frame' }).catch(fail); }, 1000);
-    return () => clearInterval(t);
-  }, [live, busy, prog, act]);
   useEffect(() => { paint(); }, [paint]);
-  useEffect(() => {
-    const end = () => { if (sid.current) fetch('/api/browse', { method: 'POST', body: JSON.stringify({ action: 'close', sid: sid.current }), keepalive: true }); };
-    window.addEventListener('beforeunload', end);
-    return () => { cancelAnimationFrame(raf.current); window.removeEventListener('beforeunload', end); end(); };
-  }, []);
+  useEffect(() => () => cancelAnimationFrame(raf.current), []);
 
   useEffect(() => {
     const t = new URLSearchParams(location.search).get('setup'); if (!t) return;
     const s = decodeSetup(t, EFFECTS.map(e => e.id)); if (!s) { say('Shared setup link is invalid.'); return; }
-    setUrl(s.url); setEffect(s.effect as EffectId); setDuration(s.duration); setIntensity(s.intensity); say('Setup restored. Open the site to run it.');
+    setUrl(s.url); setEffect(s.effect as EffectId); setDuration(s.duration); setIntensity(s.intensity); say('Setup restored. Capture the page to run it.');
   }, []);
 
   const lock = busy || rec;
-  const can = live && !lock && prog === 0;
   const record = () => { // records the full destruction as a video of the real canvas output
     const c = cv.current; if (!c || !src.current) return;
     const mime = typeof MediaRecorder === 'undefined' ? undefined : ['video/webm;codecs=vp9', 'video/webm', 'video/mp4'].find(m => MediaRecorder.isTypeSupported(m));
@@ -133,25 +105,6 @@ export default function Home() {
     const stop = () => setTimeout(() => rc.stop(), 600);
     setTimeout(() => (recMode === 'rebuild' ? run(0, stop) : run(1, recMode === 'both' ? () => setTimeout(() => run(0, stop), 500) : stop)), 400);
   };
-  const pt = (e: { clientX: number; clientY: number }) => {
-    const c = cv.current!, b = c.getBoundingClientRect(), s = Math.min(b.width / c.width, b.height / c.height);
-    const k = s * (c.width / vw.current); // screen px per remote CSS px
-    return { x: (e.clientX - b.left - (b.width - c.width * s) / 2) / k, y: (e.clientY - b.top - (b.height - c.height * s) / 2) / k };
-  };
-  const onKey = (e: React.KeyboardEvent) => {
-    if (!can || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.key.length === 1) { e.preventDefault(); act({ action: 'type', text: e.key }).catch(fail); }
-    else if (KEYS.includes(e.key)) { e.preventDefault(); act({ action: 'key', key: e.key }).catch(fail); }
-  };
-  const queueWheel = (dy: number) => {
-    wacc.current += dy; window.clearTimeout(wt.current);
-    wt.current = window.setTimeout(() => { const d = wacc.current; wacc.current = 0; act({ action: 'wheel', dx: 0, dy: d }).catch(fail); }, 50);
-  };
-  const onWheel = (e: React.WheelEvent) => { if (can) queueWheel(e.deltaY); };
-  const onTouchMove = (e: React.TouchEvent) => { // drag to scroll the remote page
-    if (!can) return; const y = e.touches[0].clientY;
-    queueWheel((ty.current - y) * (vw.current / cv.current!.getBoundingClientRect().width)); ty.current = y;
-  };
   const exportFrame = () => cv.current?.toBlob(b => {
     if (!b) { say('Export failed.'); return; }
     const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `destruction-lab-${effect}-${Math.round(prog * 100)}.png`; a.click(); URL.revokeObjectURL(a.href); say('Exported current frame as PNG.');
@@ -165,32 +118,30 @@ export default function Home() {
   return (
     <div className="wrap">
       <nav>
-        <div className="logo"><i><Skull size={20} /></i><div>DESTRUCTION LAB<div className="mono" style={{ letterSpacing: 0 }}>live site destroyer</div></div></div>
+        <div className="logo"><i><Skull size={20} /></i><div>DESTRUCTION LAB<div className="mono" style={{ letterSpacing: 0 }}>page destroyer</div></div></div>
         <span className="mono"><span className="dot" />ready</span>
         <div className="navbtns">
           <button className="menu-btn" onClick={() => { setSearch(s => !s); setMenu(false); setTimeout(() => inp.current?.focus(), 60); }} aria-label="Search site"><Search size={18} /></button>
           <button className="menu-btn" onClick={() => { setMenu(m => !m); setSearch(false); }} aria-label="Toggle options">{menu ? <X size={18} /> : <Menu size={18} />}</button>
         </div>
       </nav>
-      <header className="hero"><h1>BREAK THE WEB BEAUTIFULLY.</h1><p>Open a site, browse it, then destroy whatever section is on screen.</p></header>
+      <header className="hero"><h1>BREAK THE WEB BEAUTIFULLY.</h1><p>Enter a URL, capture the whole page, then destroy it.</p></header>
       <form className={`row target${search ? ' open' : ''}`} onSubmit={e => { e.preventDefault(); open(url); }}>
         <input ref={inp} type="text" aria-label="Website URL" placeholder="example.com" value={url} onChange={e => setUrl(e.target.value)} />
-        <button className="pri" disabled={loading || lock}><Crosshair size={16} />{loading ? 'Opening…' : 'Open site'}</button>
+        <button className="pri" disabled={loading || lock}><Crosshair size={16} />{loading ? 'Capturing…' : 'Capture page'}</button>
       </form>
-      <div className="row mono" style={{ marginTop: 8 }}>Try: {EXAMPLES.map(x => <button key={x} type="button" onClick={() => { setUrl(x); open(x); }} disabled={loading || lock} style={{ padding: '2px 8px' }}>{x}</button>)} · Don’t enter passwords: the page runs in a server-side browser.</div>
+      <div className="row mono" style={{ marginTop: 8 }}>Try: {EXAMPLES.map(x => <button key={x} type="button" onClick={() => { setUrl(x); open(x); }} disabled={loading || lock} style={{ padding: '2px 8px' }}>{x}</button>)} · Public pages only. Nothing is stored.</div>
       {error && <p className="err" role="alert">{error}</p>}
 
       <div className="lab">
         <section className="preview">
           <div className="frame">
             <div className="bar"><b /><b /><b />
-              <button disabled={!can} onClick={() => act({ action: 'back' }).catch(fail)} aria-label="Back" style={{ padding: '2px 6px' }}><ArrowLeft size={14} /></button>
               <span className="addr mono">{shownUrl || 'about:blank'}</span></div>
             <div className="stage" ref={stage}>
-              <canvas ref={cv} tabIndex={0} aria-label="Live website" style={{ visibility: live ? 'visible' : 'hidden', cursor: can ? 'pointer' : 'default' }}
-                onClick={e => { if (can) { cv.current?.focus(); act({ action: 'click', ...pt(e) }).catch(fail); } }} onWheel={onWheel} onKeyDown={onKey} onTouchStart={e => { ty.current = e.touches[0].clientY; }} onTouchMove={onTouchMove} />
-              {!live && !loading && <div className="empty">{error ? 'Could not open the site. Check the address and try again.' : 'No site yet. Enter a URL and open it.'}</div>}
-              {loading && <><div className="empty">Opening site…</div><div className="scan" /></>}
+              <canvas ref={cv} aria-label="Captured page" style={{ display: live ? 'block' : 'none' }} />
+              {!live && !loading && <div className="empty">{error ? 'Could not capture the site. Check the address and try again.' : 'No page yet. Enter a URL and capture it.'}</div>}
+              {loading && <><div className="empty">Capturing page…</div><div className="scan" /></>}
             </div>
           </div>
           <button className="fab pri" disabled={!live || lock} onClick={() => run(prog === 0 ? 1 : 0)}>{prog === 0 ? <><Flame size={16} />Destroy</> : <><Undo2 size={16} />Rebuild</>}</button>

@@ -5,10 +5,6 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
-
-# Chromium inside a container needs these flags (no user namespaces / small /dev/shm)
-RUN sed -i "s/chromium.launch()/chromium.launch({ args: ['--no-sandbox', '--disable-dev-shm-usage'] })/" app/api/browse/route.ts
-
 RUN npm run build
 
 ENV NODE_ENV=production

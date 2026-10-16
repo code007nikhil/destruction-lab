@@ -1,0 +1,161 @@
+:root{--bg:#06060a;--panel:#14141c;--line:#262634;--v:#8b5cf6;--c:#22d3ee;--t:#e8e8f2;--m:#8a8aa0}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg) radial-gradient(circle at 50% -10%,#2a1660 0,transparent 55%);color:var(--t);font:15px/1.5 system-ui,sans-serif;min-height:100vh}
+body::before{content:"";position:fixed;inset:0;background:linear-gradient(var(--line) 1px,transparent 1px) 0 0/44px 44px,linear-gradient(90deg,var(--line) 1px,transparent 1px) 0 0/44px 44px;opacity:.25;pointer-events:none;mask-image:linear-gradient(#000,transparent 70%)}
+.mono{font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--m)}
+.wrap{position:relative;max-width:1100px;margin:0 auto;padding:0 20px 60px}
+nav{display:flex;align-items:center;justify-content:space-between;padding:18px 0;gap:12px}
+.logo{display:flex;gap:10px;align-items:center;font-weight:800;letter-spacing:.14em}
+.logo i{display:grid;place-items:center;width:34px;height:34px;border-radius:9px;background:conic-gradient(from 200deg,var(--v),var(--c),var(--v));color:#000;transform:rotate(-8deg)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 8px #34d399;margin-right:6px}
+h1{font-size:clamp(38px,8vw,84px);line-height:.95;margin:28px 0 12px;font-weight:900;letter-spacing:-.03em;background:linear-gradient(100deg,#fff 20%,var(--v) 60%,var(--c));-webkit-background-clip:text;background-clip:text;color:transparent}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+input[type=text]{flex:1;min-width:200px;background:#0b0b11;border:1px solid var(--line);color:var(--t);padding:12px 14px;border-radius:10px;font:inherit}
+input:focus-visible,button:focus-visible{outline:2px solid var(--c);outline-offset:2px}
+button{display:inline-flex;gap:7px;align-items:center;background:#1d1d29;color:var(--t);border:1px solid var(--line);padding:10px 14px;border-radius:10px;font:inherit;cursor:pointer;transition:.15s}
+button:hover:not(:disabled){border-color:var(--v);transform:translateY(-1px)}
+button:disabled{opacity:.4;cursor:not-allowed}
+button.pri{background:linear-gradient(135deg,var(--v),#6d28d9);border-color:transparent;font-weight:700}
+.err{color:#fb7185;margin:8px 0 0}
+.frame{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#000}
+.bar{display:flex;gap:6px;align-items:center;padding:9px 12px;background:#101018;border-bottom:1px solid var(--line)}
+.bar b{width:10px;height:10px;border-radius:50%;background:#3a3a4a}
+.addr{flex:1;margin-left:10px;padding:3px 10px;border-radius:6px;background:#0b0b11;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.stage{position:relative;aspect-ratio:16/10;display:grid;place-items:center}
+canvas{width:100%;height:100%;display:block;object-fit:contain}
+.empty{position:absolute;text-align:center;color:var(--m);padding:20px}
+.scan{position:absolute;left:0;right:0;height:3px;background:var(--c);box-shadow:0 0 18px var(--c);animation:s 1.2s linear infinite}
+@keyframes s{from{top:0}to{top:100%}}
+.fx{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.fx button{flex-direction:column;align-items:flex-start;text-align:left;padding:14px}
+.fx button.on{border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 0 24px #22d3ee22}
+.prog{height:4px;background:#0b0b11;border-radius:4px;overflow:hidden;margin-top:12px}
+.prog div{height:100%;background:linear-gradient(90deg,var(--v),var(--c))}
+label{display:flex;flex-direction:column;gap:4px;flex:1;min-width:180px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1d1d29;border:1px solid var(--v);padding:10px 16px;border-radius:10px;z-index:9}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+/* layout v2: preview and controls side by side, no scrolling between them */
+.hero h1{font-size:clamp(28px,4.5vw,52px);margin:4px 0 6px}
+.hero p{margin:0 0 12px;color:var(--m);max-width:560px}
+.lab{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:16px;margin-top:14px;align-items:start}
+.preview{position:sticky;top:12px;min-width:0}
+.stage{aspect-ratio:16/10;max-height:calc(100vh - 250px);width:100%}
+.side{margin-top:0;display:flex;flex-direction:column;gap:14px}
+.side .fx{grid-template-columns:1fr;gap:6px}
+.side .fx button{flex-direction:row;align-items:center;gap:10px;padding:9px 12px}
+.sliders{display:flex;flex-direction:column;gap:8px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.actions button{justify-content:center}
+.actions .wide{grid-column:1/-1}
+@media(max-width:900px){
+  .lab{grid-template-columns:1fr}
+  .hero p{display:none}
+  .preview{top:0;z-index:5;background:var(--bg);padding:8px 0}
+  .stage{max-height:34vh}
+}
+/* layout v3: whole app fits the window, no page scrolling */
+html,body{height:100%;overflow:hidden}
+body::before{display:none}
+.wrap{height:100vh;height:100dvh;max-width:1400px;display:flex;flex-direction:column;padding:0 16px 12px}
+nav{flex:none;padding:10px 0}
+.hero{flex:none}
+.hero h1{font-size:clamp(20px,3vw,34px);margin:0}
+.hero p{display:none}
+.target,.wrap>.row.mono,.err{flex:none}
+.target{margin-top:8px}
+.err{margin:4px 0 0}
+.lab{flex:1;min-height:0;grid-template-columns:minmax(0,1fr) 320px;margin-top:10px;align-items:stretch}
+.preview{position:static;display:flex;flex-direction:column;min-height:0;padding:0;background:none}
+.frame{flex:1;min-height:0;display:flex;flex-direction:column}
+.stage{flex:1;min-height:0;aspect-ratio:auto;max-height:none}
+canvas{position:absolute;inset:0}
+.side{min-height:0;overflow-y:auto}
+@media(max-height:720px){.wrap>.row.mono{display:none}.hero{display:none}}
+@media(max-width:900px){
+  .lab{grid-template-columns:1fr;grid-template-rows:minmax(0,40%) minmax(0,1fr);gap:10px}
+  nav .mono{display:none}
+  .wrap>.row.mono{display:none}
+}
+/* layout v4: phones. big preview, compact controls under it, nothing to scroll */
+canvas{touch-action:none}
+@media(max-width:900px){
+  .wrap{padding:0 10px 10px}
+  nav{padding:8px 0}
+  .hero{display:none}
+  .target input{min-width:0;padding:10px 12px}
+  .lab{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;gap:8px;margin-top:8px}
+  .side{overflow:visible;padding:10px;gap:8px}
+  .side .fx{display:flex;overflow-x:auto;gap:6px;padding-bottom:2px}
+  .side .fx button{flex:none;padding:8px 10px}
+  .side .fx .mono{display:none}
+  .sliders{flex-direction:row;gap:10px}
+  .sliders label{min-width:0}
+  .actions{grid-template-columns:repeat(5,1fr);gap:6px}
+  .actions button{flex-direction:column;gap:2px;font-size:11px;padding:8px 2px}
+  .actions .wide{grid-column:auto}
+  .actions .pri.wide{grid-column:1/-1;flex-direction:row;font-size:14px}
+  .preview .mono{font-size:11px}
+}
+/* v5: stop wide children (chip row, buttons) from stretching the grid past the screen */
+.wrap{width:100%;overflow:hidden}
+.lab>*,.preview,.side,.frame,.stage{min-width:0;max-width:100%}
+@media(max-width:900px){
+  .lab{grid-template-columns:minmax(0,1fr)}
+  .side .fx{max-width:100%}
+  .actions>*,.sliders>*{min-width:0}
+  .actions button{overflow:hidden}
+}
+/* v6: phones keep the preview tall enough that the capture matches the box exactly */
+@media(max-width:900px){.stage{min-height:46vh}}
+/* v7: phones: preview uses the full screen height, options live in a slide-in sidebar */
+.menu-btn,.fab,.scrim{display:none}
+@media(max-width:900px){
+  .menu-btn{display:inline-flex;padding:8px}
+  .fab{display:inline-flex;position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:6;box-shadow:0 6px 24px #000a}
+  .scrim{display:block;position:fixed;inset:0;background:#000a;z-index:15}
+  .lab{display:block;flex:1;min-height:0;position:relative}
+  .preview{height:100%;position:relative}
+  .stage{min-height:0}
+  .side{position:fixed;top:0;right:0;bottom:0;width:min(86vw,340px);z-index:20;margin:0;border-radius:14px 0 0 14px;overflow-y:auto;transform:translateX(105%);transition:transform .25s}
+  .side.open{transform:none}
+  .side .fx{display:grid;grid-template-columns:1fr;overflow:visible}
+  .side .fx button{flex-direction:row;align-items:center;gap:10px;padding:10px 12px}
+  .side .fx .mono{display:inline}
+  .sliders{flex-direction:column}
+  .actions{grid-template-columns:1fr 1fr}
+  .actions button{flex-direction:row;gap:7px;font-size:15px;padding:10px}
+  .actions .wide,.actions .pri.wide{grid-column:1/-1}
+}
+/* v8: phones: URL bar hides behind a search icon */
+.navbtns{display:none}
+@media(max-width:900px){
+  .navbtns{display:flex;gap:8px}
+  .target{display:none}
+  .target.open{display:flex;position:fixed;top:54px;left:10px;right:10px;z-index:18;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 12px 40px #000c}
+}
+/* v9: every screen size: search + options hide behind icons, preview uses all the space */
+.wrap{max-width:none;padding:0 14px 14px}
+.hero,.wrap>.row.mono{display:none}
+.navbtns{display:flex;gap:8px}
+.menu-btn,.fab{display:inline-flex}
+.menu-btn{padding:8px}
+.fab{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:6;box-shadow:0 6px 24px #000a}
+.scrim{display:block;position:fixed;inset:0;background:#000a;z-index:15}
+.target{display:none}
+.target.open{display:flex;position:fixed;top:54px;left:50%;transform:translateX(-50%);width:min(640px,calc(100% - 20px));z-index:18;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;box-shadow:0 12px 40px #000c}
+.lab{display:block;flex:1;min-height:0;position:relative;margin-top:8px}
+.preview{height:100%;position:relative}
+.stage{min-height:0}
+.side{position:fixed;top:0;right:0;bottom:0;width:min(86vw,340px);z-index:20;margin:0;border-radius:14px 0 0 14px;overflow-y:auto;transform:translateX(105%);transition:transform .25s}
+.side.open{transform:none}
+.side .fx{display:grid;grid-template-columns:1fr;overflow:visible}
+.side .fx button{flex-direction:row;align-items:center;gap:10px;padding:10px 12px}
+.side .fx .mono{display:inline}
+.sliders{flex-direction:column}
+.actions{grid-template-columns:1fr 1fr}
+.actions button{flex-direction:row;gap:7px;font-size:15px;padding:10px}
+.actions .wide,.actions .pri.wide{grid-column:1/-1}
+/* v10: the floating button is centered with transform; keep that transform on hover so it doesn't jump */
+.fab:hover:not(:disabled),.fab:active{transform:translateX(-50%) translateY(-1px)}
+select{background:#0b0b11;color:var(--t);border:1px solid var(--line);border-radius:10px;padding:9px;font:inherit}
